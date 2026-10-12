@@ -3,7 +3,14 @@
 package com.animechecker.local.ui.components
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,13 +37,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import com.animechecker.local.domain.model.TrackStatus
 import com.animechecker.local.ui.Strings
 
 /**
  * 跨页面通用组件：只放被两个以上页面复用的部分，单页面私有的组件留在各 feature 包内。
+ * 勾集弹层另见 EpisodeCheckSheet。
  */
 
 /**
@@ -77,6 +91,144 @@ fun AppTopAppBar(
 @Composable
 fun AppBarPreview() {
     AppTopAppBar(title = "预览Preview")
+}
+
+/** 状态 pill，五态配色见设计规范 06 §3.3。 */
+@Composable
+fun StatusPill(status: TrackStatus, modifier: Modifier = Modifier) {
+    val (background, foreground) = when (status) {
+        TrackStatus.DOING ->
+            MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+
+        TrackStatus.DONE ->
+            MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+
+        TrackStatus.WISH, TrackStatus.ON_HOLD, TrackStatus.DROPPED ->
+            MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(
+        text = Strings.statusName(status),
+        style = MaterialTheme.typography.labelSmall,
+        color = foreground,
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(background)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
+}
+
+/**
+ * 状态 pill 五态预览
+ */
+@Preview(name = "StatusPill", showBackground = true)
+@Preview(name = "StatusPill-Night", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun StatusPillPreview() {
+    Row(
+        modifier = Modifier.padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TrackStatus.entries.forEach { StatusPill(it) }
+    }
+}
+
+/** 封面图，2:3；无图时显示 surfaceVariant 底色。 */
+@Composable
+fun CoverImage(model: Any?, modifier: Modifier = Modifier, corner: Int = 8) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(corner.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        if (model != null) {
+            AsyncImage(
+                model = model,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+    }
+}
+
+/**
+ * 封面占位预览（无图态）
+ */
+@Preview(name = "CoverImage", showBackground = true)
+@Composable
+fun CoverImagePreview() {
+    CoverImage(model = null, modifier = Modifier.size(width = 64.dp, height = 92.dp))
+}
+
+/** 集数进度：大数字 watched + 次级 /总数 + 细进度条；数字变化上滚，点数字可编辑。 */
+@Composable
+fun EpisodeProgress(
+    watched: Int,
+    modifier: Modifier = Modifier,
+    total: Int? = null,
+    onNumberClick: (() -> Unit)? = null,
+) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            AnimatedContent(
+                targetState = watched,
+                transitionSpec = {
+                    (slideInVertically { it / 2 } + fadeIn())
+                        .togetherWith(slideOutVertically { -it / 2 } + fadeOut())
+                },
+                label = "watchedEps",
+                modifier = if (onNumberClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onNumberClick)
+                } else {
+                    Modifier
+                },
+            ) { count ->
+                Text(
+                    "$count",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Text(
+                "/ ${total ?: "?"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 3.dp),
+            )
+        }
+        // total 可能是 0（未开播）：分母保底 1，否则 0/0 会让进度条算出 NaN
+        val denominator = (total ?: watched).coerceAtLeast(1).toFloat()
+        LinearProgressIndicator(
+            progress = { (watched.toFloat() / denominator).coerceIn(0f, 1f) },
+            trackColor = MaterialTheme.colorScheme.outline,
+            drawStopIndicator = {},
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+        )
+    }
+}
+
+/**
+ * 进度预览：总数已知与未知两种
+ */
+@Preview(name = "EpisodeProgress", showBackground = true)
+@Composable
+fun EpisodeProgressPreview() {
+    Column(
+        modifier = Modifier
+            .width(200.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        EpisodeProgress(watched = 5, total = 12)
+        EpisodeProgress(watched = 3, total = null)
+    }
 }
 
 /** 列表加载骨架：surfaceVariant 圆角色块（设计规范 06 §4），不承载文案。 */

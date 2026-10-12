@@ -134,6 +134,7 @@ fun AppRoot(container: AppContainer) {
                     HomeScreen(
                         onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) },
                         onOpenSettings = { nav.navigate(SettingsRoute) },
+                        onGoExplore = { nav.navigateToTab(ExploreRoute) },
                     )
                 }
                 composable<CalendarRoute> {
