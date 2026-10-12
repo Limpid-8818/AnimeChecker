@@ -114,7 +114,7 @@ class AppRepository(
         }.onSuccess { lastTrackedRefreshAt = now() }
     }
 
-    /** 详情：网络优先并缓存；失败时回退缓存。 */
+    /** 详情：网络优先并缓存；失败时回退缓存。打开详情本身即简介入翻译队列的信号。 */
     suspend fun loadDetail(id: Long): Result<Subject> {
         val fresh = resultOf {
             withContext(Dispatchers.IO) {
@@ -122,6 +122,10 @@ class AppRepository(
             }
         }
         val cached = subjectDao.byId(id)?.toDomain()
+        // 拉取失败时上一步的入队没跑到，缓存里有原文也算"打开过详情"，补一次入队
+        if (fresh.isFailure && cached?.summaryEn != null) {
+            withContext(Dispatchers.IO) { subjectDao.markNeedSummary(id) }
+        }
         return when {
             cached != null -> Result.success(cached)
             else -> Result.failure(fresh.exceptionOrNull()?.toAppError() ?: AppError(AppError.Kind.NOT_FOUND))

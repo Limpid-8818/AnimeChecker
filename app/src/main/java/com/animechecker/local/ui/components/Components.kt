@@ -10,10 +10,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -130,6 +132,56 @@ fun StatusPillPreview() {
     ) {
         TrackStatus.entries.forEach { StatusPill(it) }
     }
+}
+
+/** 评分行：琥珀星 + 一位小数；无评分给占位（设计规范 06 §1 tertiary）。 */
+@Composable
+fun RatingText(score: Double?, modifier: Modifier = Modifier) {
+    if (score == null || score <= 0.0) {
+        Text(
+            Strings.SCORE_UNRATED,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
+    } else {
+        Text(
+            "★ %.1f".format(score),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.tertiary,
+            modifier = modifier,
+        )
+    }
+}
+
+/**
+ * 评分预览：有分与无分两态
+ */
+@Preview(name = "RatingText", showBackground = true)
+@Composable
+fun RatingTextPreview() {
+    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        RatingText(8.6)
+        RatingText(null)
+    }
+}
+
+/** 内容白卡：surface 底 + 1dp outline 描边 + 12dp 圆角，无阴影。 */
+@Composable
+fun AppCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        content = content,
+    )
 }
 
 /** 封面图，2:3；无图时显示 surfaceVariant 底色。 */

@@ -51,6 +51,7 @@ object Strings {
     // 进度编辑（集数勾选弹层）
     const val SHEET_PICK_HINT = "点选切换单集观看状态；仅已放送的集数可选"
     const val CAUGHT_UP = "已追上放送进度"
+    const val CATCHUP_UNAVAILABLE = "放送集数未知，无法追平"
     const val SAVE = "保存"
     const val CLEAR = "清除"
 
@@ -79,10 +80,13 @@ object Strings {
     const val TOTAL_EPS = "总集数 %1\$s"
     const val TOTAL_EPS_UNKNOWN = "总集数未知"
     const val FIRST_AIR = "首播 %1\$s"
+    const val FIRST_AIR_UNKNOWN = "首播时间未知"
     const val SCORE_UNRATED = "暂无评分"
     const val SUMMARY = "简介"
     const val SUMMARY_EMPTY = "暂无简介"
     const val SUMMARY_ORIGINAL_NOTE = "简介原文（未翻译）"
+    const val SUMMARY_VIEW_ORIGINAL = "查看原文"
+    const val SUMMARY_VIEW_TRANSLATED = "查看译文"
     const val EXPAND = "展开"
     const val COLLAPSE = "收起"
     const val CHANGE_STATUS = "状态"
