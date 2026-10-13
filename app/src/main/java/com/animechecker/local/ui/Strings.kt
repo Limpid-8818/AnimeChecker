@@ -137,6 +137,9 @@ object Strings {
     const val ERROR_UPSTREAM = "AniList 返回异常，请稍后重试"
     const val ERROR_NOT_FOUND = "未找到该条目"
     const val ERROR_UNKNOWN = "操作失败，请重试"
+    const val ERROR_LLM_AUTH = "翻译服务鉴权失败，请检查 API Key"
+    const val ERROR_LLM_FORMAT = "翻译服务响应格式异常"
+    const val ERROR_LLM_FAILED = "翻译服务请求失败，请稍后重试"
 
     /** 状态名：领域状态 → 显示文案。 */
     fun statusName(status: TrackStatus): String = when (status) {
@@ -173,6 +176,9 @@ object Strings {
         AppError.Kind.RATE_LIMITED -> ERROR_RATE_LIMITED
         AppError.Kind.UPSTREAM -> ERROR_UPSTREAM
         AppError.Kind.NOT_FOUND -> ERROR_NOT_FOUND
+        AppError.Kind.LLM_AUTH -> ERROR_LLM_AUTH
+        AppError.Kind.LLM_FORMAT -> ERROR_LLM_FORMAT
+        AppError.Kind.LLM_FAILED -> ERROR_LLM_FAILED
         AppError.Kind.UNKNOWN -> ERROR_UNKNOWN
     }
 }

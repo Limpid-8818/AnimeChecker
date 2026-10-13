@@ -1,20 +1,26 @@
 package com.animechecker.local.data.repository
 
 import com.animechecker.local.data.anilist.AniListClient
+import com.animechecker.local.data.llm.LlmTranslator
+import com.animechecker.local.data.llm.TranslationQueue
 import com.animechecker.local.data.local.db.AppDatabase
 import com.animechecker.local.data.local.entity.toDomain
 import com.animechecker.local.data.local.entity.toEntity
+import com.animechecker.local.data.settings.SettingsStore
 import com.animechecker.local.domain.AiredEps
+import com.animechecker.local.domain.model.LlmSettings
 import com.animechecker.local.domain.model.Season
 import com.animechecker.local.domain.model.Subject
 import com.animechecker.local.domain.model.TrackEntry
 import com.animechecker.local.domain.model.TrackStatus
 import com.animechecker.local.domain.model.TrackedSubject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -26,18 +32,25 @@ import kotlinx.coroutines.withContext
  * - Room 是界面的唯一数据源，UI 状态一律来自 Flow 直读；
  * - 网络只做「拉取后合并写入 Room」，不持有独立状态，不构成页面 loading 门槛；
  * - 刷新分层：首页只做追番对象轻量刷新（[refreshTracked]，空清单零网络），目录类整页拉取（[refreshCatalog]）只在放送 / 番库页触发；
- * - 本地写操作（勾集、入退番、评分评论）只写 Room，离线全功能可用。
+ * - 本地写操作（勾集、入退番、评分评论）只写 Room，离线全功能可用；
+ * - 翻译是后台任务：上游数据写入后触发一轮（[kickTranslation]），不绑定页面生命周期；
+ *   未配置翻译服务时为空操作，标题回退罗马音、简介回退英文原文。
  *
  * 失败以 [Result] 承载 [AppError]，由 UI 映射成文案；协程取消不算失败，继续向上传播。
  */
-class AppRepository(
+class AppRepository internal constructor(
     database: AppDatabase,
     private val anilist: AniListClient,
+    private val llm: LlmTranslator,
+    private val settingsStore: SettingsStore,
+    private val scope: CoroutineScope,
 ) {
     private val subjectDao = database.subjectDao()
     private val trackDao = database.trackDao()
 
     private val refreshMutex = Mutex()
+    private val translationMutex = Mutex()
+    private val translations = TranslationQueue(RoomTranslationQueueStore(subjectDao), llm)
     private var lastCatalogRefreshAt = 0L
     private var lastTrackedRefreshAt = 0L
 
@@ -63,6 +76,9 @@ class AppRepository(
     fun translationPendingCount(): Flow<Int> = subjectDao.translationPendingCount()
 
     fun translationFailedCount(): Flow<Int> = subjectDao.translationFailedCount()
+
+    /** 设置页「上次刷新」时间。 */
+    fun lastRefreshAt(): Flow<Long> = settingsStore.lastRefreshAtFlow
 
     // ---------- 上游拉取 ----------
 
@@ -94,8 +110,9 @@ class AppRepository(
                 }
             }
             lastCatalogRefreshAt = now()
+            settingsStore.setLastRefreshAt(lastCatalogRefreshAt)
         }
-    }
+    }.also { kickTranslation() }
 
     /**
      * 首页轻量刷新：只更新追番对象的进度数据。
@@ -112,7 +129,7 @@ class AppRepository(
                 }
             }
         }.onSuccess { lastTrackedRefreshAt = now() }
-    }
+    }.also { kickTranslation() }
 
     /** 详情：网络优先并缓存；失败时回退缓存。打开详情本身即简介入翻译队列的信号。 */
     suspend fun loadDetail(id: Long): Result<Subject> {
@@ -121,6 +138,7 @@ class AppRepository(
                 upsertMerged(listOf(anilist.detail(id)), summariesWanted = true)
             }
         }
+        kickTranslation()
         val cached = subjectDao.byId(id)?.toDomain()
         // 拉取失败时上一步的入队没跑到，缓存里有原文也算"打开过详情"，补一次入队
         if (fresh.isFailure && cached?.summaryEn != null) {
@@ -143,6 +161,7 @@ class AppRepository(
                 items.mapNotNull { subjectDao.byId(it.id)?.toDomain() }
             }
         }
+        kickTranslation()
         return remote.fold(
             onSuccess = { SearchResult(it, fromCache = false) },
             onFailure = { SearchResult(subjectDao.search(trimmed).map { it.toDomain() }, fromCache = true) },
@@ -152,7 +171,7 @@ class AppRepository(
     /** 季度目录：拉取后入缓存，界面从 [subjects] 的 Flow 过滤。 */
     suspend fun refreshSeason(season: Season): Result<Unit> = resultOf {
         withContext(Dispatchers.IO) { upsertMerged(anilist.season(season)) }
-    }
+    }.also { kickTranslation() }
 
     /**
      * 合并写：网络非空字段覆盖旧值、空字段保留，nextEpisode / nextAiringAt 例外
@@ -169,6 +188,38 @@ class AppRepository(
             val wanted = incoming.filter { it.summaryEn != null }.map { it.id }
             if (wanted.isNotEmpty()) subjectDao.markNeedSummaryAll(wanted)
         }
+    }
+
+    // ---------- 翻译 ----------
+
+    /** 后台触发一轮翻译；未配置翻译服务时为空操作。重复触发由互斥锁串行。 */
+    fun kickTranslation() {
+        scope.launch {
+            val settings = settingsStore.llmSettings()
+            if (!settings.usable) return@launch
+            translationMutex.withLock { translations.pump(settings) }
+        }
+    }
+
+    /** 设置页「重试失败项」：FAILED 全部复位 PENDING 并触发一轮，返回复位条数。 */
+    suspend fun retryFailedTranslations(): Int {
+        val reset = subjectDao.resetFailedTranslations()
+        if (reset > 0) kickTranslation()
+        return reset
+    }
+
+    /** 设置页：当前翻译服务配置。 */
+    fun llmSettings(): Flow<LlmSettings> = settingsStore.llmSettingsFlow
+
+    /** 设置页保存配置。持久化后立即尝试补译已有条目。 */
+    suspend fun saveLlmSettings(settings: LlmSettings) {
+        settingsStore.saveLlmSettings(settings)
+        kickTranslation()
+    }
+
+    /** 设置页「测试连接」：用编辑中的配置试一次，失败按领域错误返回。 */
+    suspend fun testLlmConnection(settings: LlmSettings): Result<Unit> = resultOf {
+        withContext(Dispatchers.IO) { llm.test(settings) }
     }
 
     // ---------- 写（本地即时生效） ----------
