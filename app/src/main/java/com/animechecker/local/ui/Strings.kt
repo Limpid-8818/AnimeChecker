@@ -112,11 +112,10 @@ object Strings {
     const val LLM_UNCONFIGURED_HINT = "未配置时应用可正常使用：标题显示罗马音，简介显示英文原文"
     const val TRANSLATE_STATUS_FMT = "待翻译 %1\$d 项 · 失败 %2\$d 项"
     const val TRANSLATE_RETRY = "重试失败项"
-    const val TRANSLATE_NOW = "立即翻译"
 
     // 设置：数据
     const val DATA_SECTION = "数据"
-    const val LAST_REFRESH = "上次刷新"
+    const val LAST_REFRESH_FMT = "上次刷新：%1\$s"
     const val LAST_REFRESH_NEVER = "从未刷新"
     const val DATA_CREDIT = "番剧数据来自 AniList"
     const val STORAGE_NOTE = "卸载应用将清除全部本地数据"
