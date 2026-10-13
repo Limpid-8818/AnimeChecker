@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -76,6 +78,16 @@ fun CalendarScreen(
             val trackedIds = remember(tracks) { tracks.map { it.track.subjectId }.toSet() }
             val items = remember(subjects, viewModel.selectedDay) {
                 calendarItems(subjects, viewModel.selectedDay)
+            }
+
+            // 已有内容时的后台刷新显示细进度条
+            AnimatedVisibility(visible = viewModel.syncing && items.isNotEmpty()) {
+                LinearProgressIndicator(
+                    trackColor = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                )
             }
 
             when {
