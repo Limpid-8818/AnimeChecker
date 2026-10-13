@@ -1,5 +1,16 @@
 package com.animechecker.local.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -18,8 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -96,13 +110,63 @@ fun AppRoot(container: AppContainer) {
         val nav = rememberNavController()
         val backStackEntry by nav.currentBackStackEntryAsState()
         val current = backStackEntry?.destination
+        val showTabs = current != null && TABS.any { current.isRoute(it.routeClass) }
 
-        Scaffold(
-            bottomBar = {
-                if (current != null && TABS.any { current.isRoute(it.routeClass) }) {
+        // 页签导航栏平滑过渡
+        val tabBarInset by animateDpAsState(
+            targetValue = if (showTabs) TAB_BAR_HEIGHT else 0.dp,
+            animationSpec = tween(TAB_BAR_ANIM_MS),
+            label = "tabBarInset",
+        )
+
+        Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+            val consumedBottom = with(LocalDensity.current) {
+                WindowInsets(bottom = innerPadding.calculateBottomPadding().roundToPx())
+            }
+            Box(Modifier.fillMaxSize()) {
+                NavHost(
+                    navController = nav,
+                    startDestination = HomeRoute,
+                    modifier = Modifier
+                        .padding(
+                            top = innerPadding.calculateTopPadding(),
+                            bottom = innerPadding.calculateBottomPadding() + tabBarInset,
+                        )
+                        .consumeWindowInsets(consumedBottom),
+                ) {
+                    composable<HomeRoute> {
+                        HomeScreen(
+                            onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                            onGoExplore = { nav.navigateToTab(ExploreRoute) },
+                        )
+                    }
+                    composable<CalendarRoute> {
+                        CalendarScreen(onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) })
+                    }
+                    composable<ExploreRoute> {
+                        ExploreScreen(onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) })
+                    }
+                    composable<DetailRoute> { entry ->
+                        DetailScreen(
+                            subjectId = entry.toRoute<DetailRoute>().subjectId,
+                            onBack = { nav.popBackStack() },
+                        )
+                    }
+                    composable<SettingsRoute> {
+                        SettingsScreen(onBack = { nav.popBackStack() })
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = showTabs,
+                    enter = fadeIn(tween(TAB_BAR_ANIM_MS)) + slideInVertically(tween(TAB_BAR_ANIM_MS)) { it },
+                    exit = fadeOut(tween(TAB_BAR_ANIM_MS)) + slideOutVertically(tween(TAB_BAR_ANIM_MS)) { it },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) {
                     NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                         TABS.forEach { tab ->
-                            val selected = current.isRoute(tab.routeClass)
+                            val selected = current?.isRoute(tab.routeClass) == true
                             NavigationBarItem(
                                 selected = selected,
                                 onClick = { nav.navigateToTab(tab.route) },
@@ -122,40 +186,16 @@ fun AppRoot(container: AppContainer) {
                         }
                     }
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-        ) { innerPadding ->
-            NavHost(
-                navController = nav,
-                startDestination = HomeRoute,
-                modifier = Modifier.padding(innerPadding),
-            ) {
-                composable<HomeRoute> {
-                    HomeScreen(
-                        onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) },
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                        onGoExplore = { nav.navigateToTab(ExploreRoute) },
-                    )
-                }
-                composable<CalendarRoute> {
-                    CalendarScreen(onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) })
-                }
-                composable<ExploreRoute> {
-                    ExploreScreen(onOpenDetail = { subjectId -> nav.navigate(DetailRoute(subjectId)) })
-                }
-                composable<DetailRoute> { entry ->
-                    DetailScreen(
-                        subjectId = entry.toRoute<DetailRoute>().subjectId,
-                        onBack = { nav.popBackStack() },
-                    )
-                }
-                composable<SettingsRoute> {
-                    SettingsScreen(onBack = { nav.popBackStack() })
-                }
             }
         }
     }
 }
+
+/** 页签栏内容高度默认 80dp。 */
+private val TAB_BAR_HEIGHT = 80.dp
+
+/** 页签栏让位与自身进出的动画时长。 */
+private const val TAB_BAR_ANIM_MS = 300
 
 /** 当前 destination 是否属于该路由（含其父图）。 */
 private fun NavDestination.isRoute(routeClass: KClass<*>): Boolean =

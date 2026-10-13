@@ -43,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.animechecker.local.domain.model.TrackStatus
@@ -212,6 +213,18 @@ fun CoverImagePreview() {
     CoverImage(model = null, modifier = Modifier.size(width = 64.dp, height = 92.dp))
 }
 
+/**
+ * 在追标记。
+ */
+@Composable
+fun TrackedDot(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(10.dp)
+            .background(MaterialTheme.colorScheme.primary, CircleShape),
+    )
+}
+
 /** 集数进度：大数字 watched + 次级 /总数 + 细进度条；数字变化上滚，点数字可编辑。 */
 @Composable
 fun EpisodeProgress(
@@ -283,28 +296,40 @@ fun EpisodeProgressPreview() {
     }
 }
 
-/** 列表加载骨架：surfaceVariant 圆角色块（设计规范 06 §4），不承载文案。 */
+/**
+ * 列表加载骨架：surfaceVariant 圆角色块，不承载文案。
+ *
+ * [rowHeight] 与 [spacing] 要跟目标列表的真实行对齐，否则加载完成时整页会跳一下。
+ */
 @Composable
 fun LoadingSkeleton(
     modifier: Modifier = Modifier,
     rows: Int = 4,
+    rowHeight: Dp = 92.dp,
+    spacing: Dp = 12.dp,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(spacing),
     ) {
         repeat(rows) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(92.dp)
+                    .height(rowHeight)
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
         }
     }
+}
+
+@Preview(name = "Skeleton")
+@Composable
+fun LoadingSkeletonPreview() {
+    LoadingSkeleton(rows = 5)
 }
 
 /** 空态：图标位 + 标题 + 说明 + 动作按钮。 */
