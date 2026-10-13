@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.animechecker.local.domain.model.TrackStatus
 import com.animechecker.local.ui.Strings
@@ -332,7 +333,7 @@ fun LoadingSkeletonPreview() {
     LoadingSkeleton(rows = 5)
 }
 
-/** 空态：图标位 + 标题 + 说明 + 动作按钮。 */
+/** 空态：表情 + 标题 + 说明 + 动作按钮。 */
 @Composable
 fun EmptyState(
     title: String,
@@ -340,6 +341,7 @@ fun EmptyState(
     hint: String? = null,
     actionText: String? = null,
     onAction: (() -> Unit)? = null,
+    face: String = Strings.FACE_NEUTRAL,
 ) {
     Column(
         modifier = modifier
@@ -348,11 +350,10 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(
-            Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+        Text(
+            text = face,
+            fontSize = 36.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             title,
@@ -369,6 +370,39 @@ fun EmptyState(
         if (actionText != null && onAction != null) {
             TextButton(onClick = onAction) { Text(actionText) }
         }
+    }
+}
+
+
+/** 空态预览：四种表情（邀请 / 平淡 / 等待 / 无结果）各配一处真实用法，深浅两套主题。 */
+@Preview(name = "空态 · 浅色", showBackground = true, backgroundColor = 0xFFF6F8FA, widthDp = 360, heightDp = 1120)
+@Preview(
+    name = "空态 · 深色",
+    showBackground = true,
+    backgroundColor = 0xFF101418,
+    widthDp = 360,
+    heightDp = 1120,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun EmptyStatePreview() {
+    Column {
+        EmptyState(
+            title = Strings.EMPTY_LIST_TITLE,
+            hint = Strings.EMPTY_LIST_HINT,
+            actionText = Strings.EMPTY_LIST_ACTION,
+            onAction = {},
+            face = Strings.FACE_INVITE,
+        )
+        EmptyState(title = Strings.EMPTY_FILTER_TITLE)
+        EmptyState(
+            title = Strings.EMPTY_CALENDAR_TITLE,
+            hint = Strings.EMPTY_CALENDAR_HINT,
+            actionText = Strings.SYNC_NOW,
+            onAction = {},
+            face = Strings.FACE_WAITING,
+        )
+        EmptyState(title = Strings.SEARCH_NO_RESULT, face = Strings.FACE_NO_RESULT)
     }
 }
 

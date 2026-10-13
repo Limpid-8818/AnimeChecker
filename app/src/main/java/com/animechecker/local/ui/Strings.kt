@@ -130,6 +130,12 @@ object Strings {
     const val GO_SETTINGS = "前往设置"
     const val OFFLINE_BANNER = "离线模式：显示本地缓存"
 
+    // 空态表情（颜文字）：按语义取用，不内联到组件
+    const val FACE_INVITE = "(・ω・)"
+    const val FACE_NEUTRAL = "(・_・)"
+    const val FACE_WAITING = "×﹏×"
+    const val FACE_NO_RESULT = "(?_?)"
+
     // 错误文案：按领域错误分类取用，UI 不自行拼句子
     const val ERROR_NETWORK = "网络不可用或 AniList 暂不可达，请稍后重试"
     const val ERROR_RATE_LIMITED = "请求过于频繁，请稍后重试"

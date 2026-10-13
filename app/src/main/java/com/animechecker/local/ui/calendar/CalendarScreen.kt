@@ -118,6 +118,7 @@ fun CalendarScreen(
                     hint = Strings.EMPTY_CALENDAR_HINT,
                     actionText = Strings.SYNC_NOW,
                     onAction = { viewModel.syncNow() },
+                    face = Strings.FACE_WAITING,
                 )
 
                 else -> EmptyState(

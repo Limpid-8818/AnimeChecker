@@ -141,12 +141,10 @@ fun ExploreScreen(
                 }
 
                 results != null -> if (results.isEmpty()) {
+                    val tooShort = keyword.length < MIN_SEARCH_LENGTH
                     EmptyState(
-                        title = if (keyword.length < MIN_SEARCH_LENGTH) {
-                            Strings.SEARCH_TOO_SHORT
-                        } else {
-                            Strings.SEARCH_NO_RESULT
-                        },
+                        title = if (tooShort) Strings.SEARCH_TOO_SHORT else Strings.SEARCH_NO_RESULT,
+                        face = if (tooShort) Strings.FACE_NEUTRAL else Strings.FACE_NO_RESULT,
                     )
                 } else {
                     PosterGrid(items = results, onOpenDetail = onOpenDetail)
@@ -160,7 +158,10 @@ fun ExploreScreen(
                     )
                     when {
                         viewModel.loading && items.isEmpty() -> PosterGridSkeleton()
-                        items.isEmpty() -> EmptyState(title = Strings.EXPLORE_EMPTY)
+                        items.isEmpty() -> EmptyState(
+                            title = Strings.EXPLORE_EMPTY,
+                            face = Strings.FACE_WAITING,
+                        )
                         else -> PosterGrid(items = items, onOpenDetail = onOpenDetail)
                     }
                 }

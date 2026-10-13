@@ -158,6 +158,7 @@ fun HomeScreen(
                     hint = Strings.EMPTY_LIST_HINT,
                     actionText = Strings.EMPTY_LIST_ACTION,
                     onAction = onGoExplore,
+                    face = Strings.FACE_INVITE,
                 )
 
                 else -> EmptyState(title = Strings.EMPTY_FILTER_TITLE)
