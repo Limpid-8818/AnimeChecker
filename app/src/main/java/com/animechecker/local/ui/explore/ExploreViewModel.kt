@@ -31,6 +31,8 @@ class ExploreViewModel (private val repository: AppRepository): ViewModel() {
     var searchItems by mutableStateOf<List<Subject>?>(null) // null = 未在搜索态
         private set
 
+    private var searchResultIds: List<Long>? = null
+
     var searchFromCache by mutableStateOf(false)
         private set
 
@@ -55,6 +57,17 @@ class ExploreViewModel (private val repository: AppRepository): ViewModel() {
     /** 季度目录拉到一半就离开，下次进页面要补拉。 */
     private var seasonStale = false
 
+    // 让搜索结果随译文落库更新
+    init {
+        viewModelScope.launch {
+            repository.subjects().collect { all ->
+                val ids = searchResultIds ?: return@collect
+                val byId = all.associateBy { it.id }
+                searchItems = ids.mapNotNull { byId[it] }
+            }
+        }
+    }
+
     fun selectSeason(season: Season) {
         clearSearch()
         selectedSeason = season
@@ -71,6 +84,7 @@ class ExploreViewModel (private val repository: AppRepository): ViewModel() {
     fun search() {
         val kw = keyword.trim()
         if (kw.length < 2) {
+            searchResultIds = emptyList()
             searchItems = emptyList()
             return
         }
@@ -80,6 +94,7 @@ class ExploreViewModel (private val repository: AppRepository): ViewModel() {
             try {
                 val result = repository.search(kw)
                 if (generation == requestGeneration) {
+                    searchResultIds = result.items.map { it.id }
                     searchItems = result.items
                     searchFromCache = result.fromCache
                 }
@@ -93,6 +108,7 @@ class ExploreViewModel (private val repository: AppRepository): ViewModel() {
         // 清空搜索时要连同在途搜索一起丢掉
         invalidateRequest()
         keyword = ""
+        searchResultIds = null
         searchItems = null
     }
 
