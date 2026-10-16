@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -50,13 +52,14 @@ fun EpisodeCheckSheet(
 ) {
     val cap = maxOf(watched.maxOrNull() ?: 0, aired ?: 0, total ?: 0, MIN_GRID_ROWS)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = null) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp),
         ) {
+            SheetDragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -109,6 +112,25 @@ fun EpisodeCheckSheet(
 }
 
 private const val MIN_GRID_ROWS = 12
+
+/** 自定义拖动手柄：视觉 32×4dp 圆条；水波纹裁剪在 48×24dp 触控区内。 */
+@Composable
+private fun SheetDragHandle(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .padding(top = 14.dp, bottom = 10.dp)
+            .size(width = 48.dp, height = 24.dp)
+            .clip(CircleShape)
+            .clickable(onClick = {}),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 32.dp, height = 4.dp)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
+        )
+    }
+}
 
 @Composable
 private fun EpisodeChip(
