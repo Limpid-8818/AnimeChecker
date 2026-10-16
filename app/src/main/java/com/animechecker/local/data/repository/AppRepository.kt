@@ -243,11 +243,11 @@ class AppRepository internal constructor(
     }
 
     /** 撤回一集：移除当前最大集。 */
-    suspend fun decrement(localId: Long) {
-        mutate(localId) { entry ->
-            val max = entry.watched.maxOrNull() ?: return@mutate entry
-            entry.copy(watched = entry.watched - max)
-        }
+    suspend fun decrement(localId: Long): Boolean {
+        val track = trackDao.byId(localId) ?: return false
+        val max = track.toDomain().watched.maxOrNull() ?: return false
+        mutate(localId) { it.copy(watched = it.watched - max) }
+        return true
     }
 
     /** 单集开关：勾第 n 集只影响第 n 集，不连坐前后集。 */

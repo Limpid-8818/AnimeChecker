@@ -82,7 +82,7 @@ fun HomeScreen(
     val snackbar = remember { SnackbarHostState() }
     // 筛选用 rememberSaveable：进详情返回后保持所选状态；默认"在看"
     var filter by rememberSaveable { mutableStateOf<TrackStatus?>(TrackStatus.DOING) }
-    var editing by remember { mutableStateOf<TrackedSubject?>(null) }
+    var editingId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -136,18 +136,21 @@ fun HomeScreen(
                             row = row,
                             onIncrement = {
                                 scope.launch {
-                                    if (!viewModel.increment(row.track.localId)) {
+                                    if (!viewModel.increment(row.track.localId) &&
+                                        snackbar.currentSnackbarData?.visuals?.message != Strings.CAUGHT_UP
+                                    ) {
                                         snackbar.showSnackbar(Strings.CAUGHT_UP)
                                     }
                                 }
                             },
                             onDecrement = {
                                 scope.launch {
-                                    viewModel.decrement(row.track.localId)
-                                    snackbar.showSnackbar(Strings.UNDO_HINT)
+                                    if (viewModel.decrement(row.track.localId)) {
+                                        snackbar.showSnackbar(Strings.UNDO_HINT)
+                                    }
                                 }
                             },
-                            onEditProgress = { editing = row },
+                            onEditProgress = { editingId = row.track.localId },
                             onClick = { onOpenDetail(row.track.subjectId) },
                         )
                     }
@@ -166,17 +169,19 @@ fun HomeScreen(
         }
     }
 
-    editing?.let { row ->
-        EpisodeCheckSheet(
-            title = row.subject?.nameCn ?: row.subject?.name ?: "",
-            watched = row.track.watched,
-            aired = AiredEps.subjectAired(row.subject),
-            total = row.subject?.epsTotal,
-            onToggleEpisode = { episode ->
-                scope.launch { viewModel.toggleEpisode(row.track.localId, episode) }
-            },
-            onDismiss = { editing = null },
-        )
+    editingId?.let { id ->
+        rows.firstOrNull { it.track.localId == id }?.let { row ->
+            EpisodeCheckSheet(
+                title = row.subject?.nameCn ?: row.subject?.name ?: "",
+                watched = row.track.watched,
+                aired = AiredEps.subjectAired(row.subject),
+                total = row.subject?.epsTotal,
+                onToggleEpisode = { episode ->
+                    scope.launch { viewModel.toggleEpisode(row.track.localId, episode) }
+                },
+                onDismiss = { editingId = null },
+            )
+        }
     }
 }
 

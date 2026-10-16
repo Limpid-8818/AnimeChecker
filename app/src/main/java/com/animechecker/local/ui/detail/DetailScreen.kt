@@ -159,7 +159,9 @@ fun DetailScreen(
                     onIncrement = {
                         state.track?.let { track ->
                             scope.launch {
-                                if (!viewModel.increment(track.localId)) {
+                                if (!viewModel.increment(track.localId) &&
+                                    snackbar.currentSnackbarData?.visuals?.message != Strings.CAUGHT_UP
+                                ) {
                                     snackbar.showSnackbar(Strings.CAUGHT_UP)
                                 }
                             }
@@ -168,8 +170,9 @@ fun DetailScreen(
                     onDecrement = {
                         state.track?.let { track ->
                             scope.launch {
-                                viewModel.decrement(track.localId)
-                                snackbar.showSnackbar(Strings.UNDO_HINT)
+                                if (viewModel.decrement(track.localId)) {
+                                    snackbar.showSnackbar(Strings.UNDO_HINT)
+                                }
                             }
                         }
                     },

@@ -37,7 +37,7 @@ class HomeViewModel(private val repository: AppRepository) : ViewModel() {
     suspend fun increment(localId: Long): Boolean = repository.increment(localId)
 
     /** 撤销一集：移除当前最大集。 */
-    suspend fun decrement(localId: Long) = repository.decrement(localId)
+    suspend fun decrement(localId: Long): Boolean = repository.decrement(localId)
 
     /** 单集开关：勾第 n 集不影响其它集。 */
     suspend fun toggleEpisode(localId: Long, episode: Int) =

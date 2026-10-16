@@ -62,7 +62,8 @@ class DetailViewModel(
     /** +1：返回 false 表示已到已放送上限，界面提示。 */
     suspend fun increment(localId: Long): Boolean = repository.increment(localId)
 
-    suspend fun decrement(localId: Long) = repository.decrement(localId)
+    /** 撤回一集 */
+    suspend fun decrement(localId: Long): Boolean = repository.decrement(localId)
 
     suspend fun toggleEpisode(localId: Long, episode: Int) = repository.toggleEpisode(localId, episode)
 
