@@ -4,10 +4,10 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -26,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,24 +40,23 @@ import java.time.LocalDate
 /**
  * 每周日期选择行。
  *
- * 包括当日与选中日高亮。
+ * 包括当日与选中日高亮；横向滚动跟随选中日（默认为当天）。
  */
 @Composable
 internal fun WeekdayRow(selectedDay: Int, today: Int, onDaySelected: (Int) -> Unit) {
-    val scroll = rememberScrollState()
-    val density = LocalDensity.current
-    LaunchedEffect(Unit) {
-        val px = with(density) { ((today - 1) * 96).dp.roundToPx() }
-        scroll.scrollTo(px)
+    val listState = rememberLazyListState()
+    // 滚动跟随选中日，并在左侧留一个 pill 作左边距
+    LaunchedEffect(selectedDay) {
+        listState.scrollToItem((selectedDay - 2).coerceAtLeast(0))
     }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scroll)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+    LazyRow(
+        state = listState,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        (1..7).forEach { wd ->
+        items(count = WEEKDAYS, key = { it + 1 }) { index ->
+            val wd = index + 1
             val selected = selectedDay == wd
             val isToday = today == wd
             val fg = when {
@@ -102,6 +101,8 @@ internal fun WeekdayRow(selectedDay: Int, today: Int, onDaySelected: (Int) -> Un
         }
     }
 }
+
+private const val WEEKDAYS = 7
 
 /**
  * 放送表行。
