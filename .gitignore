@@ -9,3 +9,7 @@
 .cxx
 local.properties
 /.kotlin
+
+secret*.conf
+*.jks
+*.keystore
