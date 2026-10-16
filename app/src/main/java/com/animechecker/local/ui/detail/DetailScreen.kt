@@ -24,10 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -83,12 +85,22 @@ fun DetailScreen(
     var editingEpisodes by remember { mutableStateOf(false) }
     var editingRating by remember { mutableStateOf(false) }
     var editingComment by remember { mutableStateOf(false) }
+    var editingTranslation by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
     Scaffold(
-        topBar = { AppTopAppBar(onBack = onBack) },
+        topBar = {
+            AppTopAppBar(
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = { editingTranslation = true }) {
+                        Icon(Icons.Outlined.Edit, contentDescription = Strings.EDIT_TRANSLATION)
+                    }
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             // 未加入清单时才占底部一条：全宽"加入追番"，其余情况内容自行收尾
@@ -266,6 +278,47 @@ fun DetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { editingComment = false }) { Text(Strings.CANCEL) }
+            },
+        )
+    }
+
+    if (editingTranslation && subject != null) {
+        // 预填充：有译文填译文，无译文填原文；
+        // 对话框开着时后台写回不更新草稿，保存以用户输入为准。
+        var titleDraft by remember(editingTranslation) { mutableStateOf(subject.nameCn ?: subject.name) }
+        var summaryDraft by remember(editingTranslation) {
+            mutableStateOf(subject.summary ?: subject.summaryEn.orEmpty())
+        }
+        AlertDialog(
+            onDismissRequest = { editingTranslation = false },
+            title = { Text(Strings.EDIT_TRANSLATION) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = titleDraft,
+                        onValueChange = { titleDraft = it },
+                        label = { Text(Strings.TRANS_NAME_LABEL) },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = summaryDraft,
+                        onValueChange = { summaryDraft = it },
+                        label = { Text(Strings.TRANS_SUMMARY_LABEL) },
+                        minLines = 4,
+                        maxLines = 8,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch { viewModel.saveTranslation(titleDraft, summaryDraft) }
+                    editingTranslation = false
+                }) {
+                    Text(Strings.SAVE)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingTranslation = false }) { Text(Strings.CANCEL) }
             },
         )
     }

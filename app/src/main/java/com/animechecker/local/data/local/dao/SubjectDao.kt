@@ -58,11 +58,21 @@ interface SubjectDao {
     @Query("UPDATE subjects SET needSummary = 1, translateState = 0 WHERE id IN (:ids) AND translateState != 2")
     suspend fun markNeedSummaryAll(ids: List<Long>)
 
+    /** 手动编辑译文用：无条件写，null = 清除该字段。 */
     @Query("UPDATE subjects SET nameCn = :nameCn WHERE id = :id")
-    suspend fun setNameCn(id: Long, nameCn: String)
+    suspend fun setNameCn(id: Long, nameCn: String?)
 
     @Query("UPDATE subjects SET summary = :summary WHERE id = :id")
-    suspend fun setSummary(id: Long, summary: String)
+    suspend fun setSummary(id: Long, summary: String?)
+
+    /**
+     * 翻译队列写回：只在字段为空时填入，不覆盖已有内容。
+     */
+    @Query("UPDATE subjects SET nameCn = :nameCn WHERE id = :id AND nameCn IS NULL")
+    suspend fun setNameCnIfAbsent(id: Long, nameCn: String)
+
+    @Query("UPDATE subjects SET summary = :summary WHERE id = :id AND summary IS NULL")
+    suspend fun setSummaryIfAbsent(id: Long, summary: String)
 
     @Query("UPDATE subjects SET translateState = :state WHERE id = :id")
     suspend fun setTranslateState(id: Long, state: Int)

@@ -16,9 +16,9 @@ internal class RoomTranslationQueueStore(private val subjectDao: SubjectDao) : T
 
     override suspend fun fresh(id: Long): QueuedSubject? = subjectDao.byId(id)?.toQueued()
 
-    override suspend fun saveNameCn(id: Long, nameCn: String) = subjectDao.setNameCn(id, nameCn)
+    override suspend fun saveNameCn(id: Long, nameCn: String) = subjectDao.setNameCnIfAbsent(id, nameCn)
 
-    override suspend fun saveSummary(id: Long, summary: String) = subjectDao.setSummary(id, summary)
+    override suspend fun saveSummary(id: Long, summary: String) = subjectDao.setSummaryIfAbsent(id, summary)
 
     override suspend fun setState(id: Long, state: TranslateState) =
         subjectDao.setTranslateState(id, state.toCode())

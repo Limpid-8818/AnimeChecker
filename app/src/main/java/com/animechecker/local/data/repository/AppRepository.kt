@@ -4,6 +4,7 @@ import com.animechecker.local.data.anilist.AniListClient
 import com.animechecker.local.data.llm.LlmTranslator
 import com.animechecker.local.data.llm.TranslationQueue
 import com.animechecker.local.data.local.db.AppDatabase
+import com.animechecker.local.data.local.entity.SubjectEntity
 import com.animechecker.local.data.local.entity.toDomain
 import com.animechecker.local.data.local.entity.toEntity
 import com.animechecker.local.data.settings.SettingsStore
@@ -276,6 +277,25 @@ class AppRepository internal constructor(
     }
 
     suspend fun removeTrack(localId: Long) = trackDao.delete(localId)
+
+    /**
+     * 手动编辑译文。
+     * 保存为空白视为清除该字段，并标记该条目翻译状态为PENDING，会重新执行翻译。
+     */
+    suspend fun saveTranslation(subjectId: Long, nameCn: String?, summary: String?) {
+        val subject = subjectDao.byId(subjectId) ?: return
+        val name = nameCn?.trim()?.ifBlank { null }
+        val translated = summary?.trim()?.ifBlank { null }
+        subjectDao.setNameCn(subjectId, name)
+        subjectDao.setSummary(subjectId, translated)
+        val workLeft = name == null ||
+            (subject.needSummary && subject.summaryEn != null && translated == null)
+        when {
+            !workLeft -> subjectDao.setTranslateState(subjectId, SubjectEntity.TRANSLATE_DONE)
+            subject.translateState == SubjectEntity.TRANSLATE_DONE ->
+                subjectDao.setTranslateState(subjectId, SubjectEntity.TRANSLATE_PENDING)
+        }
+    }
 
     private suspend fun mutate(localId: Long, transform: (TrackEntry) -> TrackEntry) {
         val entity = trackDao.byId(localId) ?: return

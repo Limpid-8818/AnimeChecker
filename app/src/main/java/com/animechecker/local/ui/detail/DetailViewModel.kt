@@ -76,5 +76,8 @@ class DetailViewModel(
 
     suspend fun setComment(localId: Long, comment: String) = repository.setComment(localId, comment)
 
+    suspend fun saveTranslation(nameCn: String?, summary: String?) =
+        repository.saveTranslation(subjectId, nameCn, summary)
+
     suspend fun removeTrack(localId: Long) = repository.removeTrack(localId)
 }
