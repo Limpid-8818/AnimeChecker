@@ -30,3 +30,17 @@ data class TrackedSubject(
     val track: TrackEntry,
     val subject: Subject?,
 )
+
+/**
+ * 已完结且全部看完时，“在看”状态可自动转成“看完”。
+ */
+fun shouldAutoComplete(
+    status: TrackStatus,
+    watchedCount: Int,
+    epsTotal: Int?,
+    aired: Int?,
+): Boolean = status == TrackStatus.DOING &&
+    epsTotal != null &&
+    aired != null &&
+    aired >= epsTotal &&
+    watchedCount == epsTotal

@@ -15,6 +15,7 @@ import com.animechecker.local.domain.model.Subject
 import com.animechecker.local.domain.model.TrackEntry
 import com.animechecker.local.domain.model.TrackStatus
 import com.animechecker.local.domain.model.TrackedSubject
+import com.animechecker.local.domain.model.shouldAutoComplete
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -240,6 +241,7 @@ class AppRepository internal constructor(
         val next = (track.toDomain().watched.maxOrNull() ?: 0) + 1
         if (cap != null && next > cap) return false
         mutate(localId) { entry -> entry.copy(watched = entry.watched + next) }
+        autoCompleteIfFinished(localId)
         return true
     }
 
@@ -256,6 +258,7 @@ class AppRepository internal constructor(
         mutate(localId) { entry ->
             entry.copy(watched = if (episode in entry.watched) entry.watched - episode else entry.watched + episode)
         }
+        autoCompleteIfFinished(localId)
     }
 
     suspend fun setStatus(localId: Long, status: TrackStatus) = mutate(localId) { it.copy(status = status) }
@@ -273,6 +276,7 @@ class AppRepository internal constructor(
         val track = trackDao.byId(localId) ?: return false
         val aired = AiredEps.subjectAired(subjectDao.byId(track.subjectId)?.toDomain()) ?: return false
         mutate(localId) { it.copy(watched = (1..aired).toSet()) }
+        autoCompleteIfFinished(localId)
         return true
     }
 
@@ -300,6 +304,14 @@ class AppRepository internal constructor(
     private suspend fun mutate(localId: Long, transform: (TrackEntry) -> TrackEntry) {
         val entity = trackDao.byId(localId) ?: return
         trackDao.upsert(transform(entity.toDomain()).copy(updatedAt = now()).toEntity())
+    }
+
+    private suspend fun autoCompleteIfFinished(localId: Long) {
+        val track = trackDao.byId(localId)?.toDomain() ?: return
+        val subject = subjectDao.byId(track.subjectId)?.toDomain()
+        val aired = AiredEps.subjectAired(subject)
+        if (!shouldAutoComplete(track.status, track.watched.count(), subject?.epsTotal, aired)) return
+        mutate(localId) { it.copy(status = TrackStatus.DONE) }
     }
 
     private fun now(): Long = System.currentTimeMillis()
