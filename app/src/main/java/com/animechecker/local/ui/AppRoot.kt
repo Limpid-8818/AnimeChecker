@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,9 @@ data object ExploreRoute
 @Serializable
 data class DetailRoute(val subjectId: Long)
 
+/** 深链请求：带请求序号，使相同id请求互异，保证 LaunchedEffect 导航到目标详情页。 */
+data class DeepLinkRequest(val subjectId: Long, val seq: Int)
+
 /** 设置：从首页顶栏进入，不占页签。 */
 @Serializable
 data object SettingsRoute
@@ -103,14 +107,26 @@ private val TABS = listOf(
  * 约定：
  * - 页面数据一律来自 Room Flow，导航不承担数据传递；
  * - 切页签不触发目录级网络刷新，刷新时机归各页 ViewModel（刷新分层见 data/repository）。
+ *
+ * @param deepLink 桌面组件深链，非空时直接跳转至目标详情页。
  */
 @Composable
-fun AppRoot(container: AppContainer) {
+fun AppRoot(container: AppContainer, deepLink: DeepLinkRequest? = null) {
     CompositionLocalProvider(LocalAppContainer provides container) {
         val nav = rememberNavController()
         val backStackEntry by nav.currentBackStackEntryAsState()
         val current = backStackEntry?.destination
         val showTabs = current != null && TABS.any { current.isRoute(it.routeClass) }
+
+        // 已停在该详情页时跳过，否则按deeplink执行跳转
+        LaunchedEffect(deepLink) {
+            val request = deepLink ?: return@LaunchedEffect
+            val onSameDetail = current?.hasRoute(DetailRoute::class) == true &&
+                backStackEntry?.toRoute<DetailRoute>()?.subjectId == request.subjectId
+            if (!onSameDetail) {
+                nav.navigate(DetailRoute(request.subjectId))
+            }
+        }
 
         // 页签导航栏平滑过渡
         val tabBarInset by animateDpAsState(

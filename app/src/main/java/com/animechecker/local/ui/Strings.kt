@@ -128,6 +128,14 @@ object Strings {
     const val VERSION_FMT = "版本 %1\$s"
     const val ABOUT_NETWORK_NOTE = "网络仅用于拉取 AniList 数据与调用翻译服务"
 
+    // 桌面组件
+    const val WIDGET_TITLE = "在追番剧"
+    const val WIDGET_EMPTY = "没有在看的条目"
+    const val WIDGET_TITLE_MISSING = "…"
+    const val WIDGET_PREV = "上一个条目"
+    const val WIDGET_NEXT = "下一个条目"
+    const val WIDGET_CAUGHT_UP = "已追上"
+
     // 通用
     const val RETRY = "重试"
     const val GO_SETTINGS = "前往设置"

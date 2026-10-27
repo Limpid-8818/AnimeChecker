@@ -41,15 +41,19 @@ object AiredEps {
     }
 
     /** 界面用：按条目领域模型推算已放送集数。 */
-    fun subjectAired(subject: Subject?): Int? {
+    fun subjectAired(subject: Subject?, today: LocalDate = LocalDate.now(zone)): Int? {
         if (subject == null) return null
         return compute(
             airDate = subject.airDate,
             nextEpisode = subject.nextEpisode,
             nextAiringAt = subject.nextAiringAt,
             epsTotal = subject.epsTotal,
+            today = today,
         )
     }
+
+    /** 今日日期工具函数。 */
+    fun today(): LocalDate = LocalDate.now(zone)
 
     /** epoch 秒 → Asia/Shanghai 星期（1-7）。 */
     fun epochWeekday(epoch: Long): Int =
