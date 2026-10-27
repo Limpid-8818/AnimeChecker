@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#2E90FA</color>
-    <!-- 启动窗口底色与应用背景一致，避免冷启动闪白（设计规范 06 §1） -->
+    <!-- 启动窗口底色与应用背景一致，避免冷启动闪白 -->
     <color name="window_background">#F6F8FA</color>
 </resources>

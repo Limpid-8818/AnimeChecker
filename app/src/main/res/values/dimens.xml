@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 组件尺寸固定为4x2，后续再实现其他尺寸适配。 -->
+    <integer name="anime_checker_widget_target_cell_width">4</integer>
+    <integer name="anime_checker_widget_target_cell_height">2</integer>
+    <dimen name="anime_checker_widget_min_width">256dp</dimen>
+    <dimen name="anime_checker_widget_min_height">115dp</dimen>
+</resources>

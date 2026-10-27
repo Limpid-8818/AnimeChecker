@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">AnimeChecker</string>
+
+    <string name="widget_description">追番进度组件</string>
+    <!-- 组件选择器静态预览用示例文案（Android 15前） -->
+    <string name="widget_preview_title">在追番剧</string>
+    <string name="widget_preview_hint">+1 记录进度</string>
+    <string name="widget_preview_title_a">作品 A</string>
+    <string name="widget_preview_title_b">作品 B</string>
+    <string name="widget_preview_watched_a">4</string>
+    <string name="widget_preview_total_a">/ 12</string>
+    <string name="widget_preview_weekday">周五</string>
+    <string name="widget_preview_airing_a">已更新 6 话</string>
 </resources>
