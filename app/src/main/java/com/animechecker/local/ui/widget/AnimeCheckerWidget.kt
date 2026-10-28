@@ -142,6 +142,11 @@ private object WidgetColors {
 private val CoverWidthMin = 56.dp
 
 /**
+ * clickable禁用波纹效果。
+ */
+private const val NoRipple = -1
+
+/**
  * 封面高度随组件高度等比伸缩。
  * 按组件高度的55%计算，整体控制在[80, 176]dp。
  */
@@ -171,6 +176,7 @@ private fun WidgetSurface(items: List<WidgetItem>, anchor: Long?, preview: Boole
     Scaffold(
         titleBar = { WidgetHeader() },
         backgroundColor = GlanceTheme.colors.surface,
+        modifier = GlanceModifier.clickable(openAppAction(context, null), rippleOverride = NoRipple)
     ) {
         Box(
             modifier = GlanceModifier.fillMaxSize(),
@@ -182,9 +188,6 @@ private fun WidgetSurface(items: List<WidgetItem>, anchor: Long?, preview: Boole
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 14.sp
-                    ),
-                    modifier = GlanceModifier.clickable(
-                        openAppAction(context, subjectId = null),
                     ),
                 )
 
