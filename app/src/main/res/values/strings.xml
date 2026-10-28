@@ -2,6 +2,8 @@
     <string name="app_name">AnimeChecker</string>
 
     <string name="widget_description">追番进度组件</string>
+    <!-- 组件选择器中显示的名称 -->
+    <string name="widget_label">在追番剧</string>
     <!-- 组件选择器静态预览用示例文案（Android 15前） -->
     <string name="widget_preview_title">在追番剧</string>
     <string name="widget_preview_hint">+1 记录进度</string>
