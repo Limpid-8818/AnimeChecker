@@ -3,7 +3,6 @@ package com.animechecker.local.ui.widget
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -11,7 +10,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.createBitmap
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -78,7 +76,7 @@ class AnimeCheckerWidget: GlanceAppWidget() {
         val items = widgetItems(repository.tracksWithSubjects().first())
         provideContent {
             GlanceTheme(colors = WidgetColors.providers) {
-                WidgetSurface(items = items)
+                WidgetSurface(items = items, anchor = currentState(AnchorKey))
             }
         }
     }
@@ -90,7 +88,7 @@ class AnimeCheckerWidget: GlanceAppWidget() {
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
         provideContent {
             GlanceTheme(colors = WidgetColors.providers) {
-                WidgetSurface(items = previewItems(context), previewCover = previewCoverPlaceholder())
+                WidgetSurface(items = previewItems(context), anchor = null, preview = true)
             }
         }
     }
@@ -124,13 +122,6 @@ class AnimeCheckerWidget: GlanceAppWidget() {
                 isToday = false,
             ),
         )
-
-        /** 预览封面占位。 */
-        private fun previewCoverPlaceholder(): Bitmap {
-            return createBitmap(148, 208).apply {
-                eraseColor(0xFFE3F0FF.toInt())
-            }
-        }
     }
 }
 
@@ -151,11 +142,12 @@ internal fun coverHeightFor(widgetHeight: Dp): Dp =
 
 /**
  * 组件根容器。
+ *
+ * @param anchor 当前条目锚点（subjectId），由调用方经 [currentState] 读取后传入，预览传 null。
  */
 @Composable
-private fun WidgetSurface(items: List<WidgetItem>, previewCover: Bitmap? = null) {
+private fun WidgetSurface(items: List<WidgetItem>, anchor: Long?, preview: Boolean = false) {
     val context = LocalContext.current
-    val anchor = currentState(AnimeCheckerWidget.AnchorKey)
     val current = items.getOrNull(anchorIndex(items, anchor))
     // 封面随当前条目异步加载，切卡后按coverUrl重新加载；无地址视为加载失败
     val loadedCover by produceState(
@@ -167,6 +159,7 @@ private fun WidgetSurface(items: List<WidgetItem>, previewCover: Bitmap? = null)
             else -> CoverState.Ready(bitmap)
         }
     }
+    val cover = if (preview) CoverState.Loading else loadedCover
     Scaffold(
         titleBar = { WidgetHeader() },
         backgroundColor = GlanceTheme.colors.surface,
@@ -185,7 +178,7 @@ private fun WidgetSurface(items: List<WidgetItem>, previewCover: Bitmap? = null)
                 )
                 else -> ItemCard(
                     item = current!!,
-                    cover = previewCover?.let(CoverState::Ready) ?: loadedCover,
+                    cover = cover,
                 )
             }
         }
