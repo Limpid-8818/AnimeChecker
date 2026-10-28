@@ -11,11 +11,13 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.animechecker.local.di.AppContainer
+import com.animechecker.local.ui.widget.AnimeCheckerWidget
 import com.animechecker.local.ui.widget.AnimeCheckerWidgetReceiver
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 
@@ -27,6 +29,7 @@ class AnimeCheckerApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        observeTracksForWidget()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             publishWidgetPreviews()
@@ -61,6 +64,24 @@ class AnimeCheckerApp : Application(), SingletonImageLoader.Factory {
                         intSetOf(AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN),
                     )
             }
+        }
+    }
+
+    /**
+     * 监听 Room 更新，写库后主动刷新桌面组件。
+     */
+    private fun observeTracksForWidget() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            container.repository.tracksWithSubjects()
+                .distinctUntilChanged()
+                .collect {
+                    runCatching {
+                        val widget = AnimeCheckerWidget()
+                        GlanceAppWidgetManager(this@AnimeCheckerApp)
+                            .getGlanceIds(AnimeCheckerWidget::class.java)
+                            .forEach { id -> widget.update(this@AnimeCheckerApp, id) }
+                    }
+                }
         }
     }
 }

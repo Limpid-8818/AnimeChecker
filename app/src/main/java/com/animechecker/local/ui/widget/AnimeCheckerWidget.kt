@@ -5,12 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.createBitmap
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -18,15 +18,13 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
-import androidx.glance.background
 import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
-import androidx.glance.currentState
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
@@ -36,6 +34,8 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -53,6 +53,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.animechecker.local.AnimeCheckerApp
 import com.animechecker.local.MainActivity
 import com.animechecker.local.R
@@ -61,8 +62,6 @@ import com.animechecker.local.ui.Strings
 import com.animechecker.local.ui.theme.DarkColors
 import com.animechecker.local.ui.theme.LightColors
 import kotlinx.coroutines.flow.first
-import androidx.core.graphics.createBitmap
-import androidx.glance.unit.ColorProvider
 
 /**
  * 在看追番单卡片桌面组件。
@@ -72,13 +71,12 @@ class AnimeCheckerWidget: GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // 取首屏数据，消除加载空窗
+        // 加载条目数据
         val repository = (context.applicationContext as AnimeCheckerApp).container.repository
-        val initialRows = repository.tracksWithSubjects().first()
+        val items = widgetItems(repository.tracksWithSubjects().first())
         provideContent {
-            val rows by repository.tracksWithSubjects().collectAsState(initial = initialRows)
             GlanceTheme(colors = WidgetColors.providers) {
-                WidgetSurface(items = widgetItems(rows))
+                WidgetSurface(items = items)
             }
         }
     }
@@ -361,7 +359,11 @@ private fun ItemCard(item: WidgetItem, cover: Bitmap?) {
 private suspend fun shift(context: Context, glanceId: GlanceId, delta: Int) {
     val repository = (context.applicationContext as AnimeCheckerApp).container.repository
     val items = widgetItems(repository.tracksWithSubjects().first())
-    if (items.size < 2) return
+    if (items.size < 2) {
+        // 空清单或单条目时进行一次强制刷新
+        AnimeCheckerWidget().update(context, glanceId)
+        return
+    }
     val prefs = getAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId)
     val current = anchorIndex(items, prefs[AnimeCheckerWidget.AnchorKey])
     val next = items[stepIndex(current, items.size, delta)]
@@ -405,7 +407,6 @@ class IncrementAction : ActionCallback {
         val localId = parameters[LocalIdKey] ?: return
         val repository = (context.applicationContext as AnimeCheckerApp).container.repository
         repository.increment(localId)
-        // 显式 update 防止因进程冷启动未触发重组
         AnimeCheckerWidget().update(context, glanceId)
     }
 
