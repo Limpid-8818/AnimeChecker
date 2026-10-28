@@ -4,7 +4,9 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minWidth="@dimen/anime_checker_widget_min_width"
     android:minHeight="@dimen/anime_checker_widget_min_height"
-    android:resizeMode="none"
+    android:resizeMode="horizontal|vertical"
+    android:minResizeWidth="@dimen/anime_checker_widget_min_resize_width"
+    android:minResizeHeight="@dimen/anime_checker_widget_min_resize_height"
     android:updatePeriodMillis="1800000"
     android:previewImage="@drawable/anime_checker_widget_preview_image">
 </appwidget-provider>

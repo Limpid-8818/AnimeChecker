@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
@@ -18,6 +19,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
@@ -137,9 +139,15 @@ private object WidgetColors {
     val providers = ColorProviders(light = LightColors, dark = DarkColors)
 }
 
-// 封面尺寸
-private val CoverWidth = 86.dp
-private val CoverHeight = 128.dp
+// 封面宽度下限，避免组件高度过低时封面尺寸过度压缩
+private val CoverWidthMin = 56.dp
+
+/**
+ * 封面高度随组件高度等比伸缩。
+ * 按组件高度的55%计算，整体控制在[80, 176]dp。
+ */
+internal fun coverHeightFor(widgetHeight: Dp): Dp =
+    minOf(widgetHeight * 0.55f, widgetHeight - 56.dp).coerceIn(80.dp, 176.dp)
 
 /**
  * 组件根容器。
@@ -241,6 +249,9 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
     val total = item.epsTotal ?: item.aired?.takeIf { it > 0 }
     val denominator = (total ?: item.watchedCount).coerceAtLeast(1).toFloat()
     val progress = (item.watchedCount / denominator).coerceIn(0f, 1f)
+    // 封面随组件高度等比伸缩，宽度按 2:3、设下限保底
+    val coverHeight = coverHeightFor(LocalSize.current.height)
+    val coverWidth = (coverHeight * 2f / 3f).coerceAtLeast(CoverWidthMin)
     Row(
         modifier = GlanceModifier
             .padding(horizontal = 16.dp)
@@ -254,7 +265,7 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
             CoverState.Loading -> {
                 Box(
                     modifier = GlanceModifier
-                        .size(width = CoverWidth, height = CoverHeight)
+                        .size(width = coverWidth, height = coverHeight)
                         .background(GlanceTheme.colors.surfaceVariant)
                         .cornerRadius(10.dp),
                 ) {}
@@ -266,7 +277,7 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .size(width = CoverWidth, height = CoverHeight)
+                        .size(width = coverWidth, height = coverHeight)
                         .cornerRadius(10.dp),
                 )
                 Spacer(GlanceModifier.width(14.dp))
@@ -276,7 +287,7 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
         Column(
             modifier = GlanceModifier
                 .defaultWeight()
-                .height(CoverHeight),
+                .height(coverHeight),
         ) {
             Text(
                 text = item.title ?: Strings.WIDGET_TITLE_MISSING,
@@ -304,6 +315,7 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
                         fontSize = 14.sp,
                     ),
                     modifier = GlanceModifier.padding(bottom = 4.dp),
+                    maxLines = 1,
                 )
             }
             Spacer(GlanceModifier.height(4.dp))
