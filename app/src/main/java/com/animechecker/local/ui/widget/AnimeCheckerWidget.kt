@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.Color
@@ -61,20 +62,27 @@ import com.animechecker.local.domain.AiredEps
 import com.animechecker.local.ui.Strings
 import com.animechecker.local.ui.theme.DarkColors
 import com.animechecker.local.ui.theme.LightColors
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
  * 在看追番单卡片桌面组件。
  */
-class AnimeCheckerWidget: GlanceAppWidget() {
+class AnimeCheckerWidget : GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // 加载条目数据
+        // 订阅 Room 流，加载条目数据
+        // distinctUntilChanged投影去重，若写入不改变组件所需数据则不触发重组。
         val repository = (context.applicationContext as AnimeCheckerApp).container.repository
-        val items = widgetItems(repository.tracksWithSubjects().first())
+        val itemsFlow = repository.tracksWithSubjects()
+            .map { widgetItems(it) }
+            .distinctUntilChanged()
+        val initial = itemsFlow.first()
         provideContent {
+            val items by itemsFlow.collectAsState(initial)
             GlanceTheme(colors = WidgetColors.providers) {
                 WidgetSurface(items = items, anchor = currentState(AnchorKey))
             }
@@ -171,11 +179,15 @@ private fun WidgetSurface(items: List<WidgetItem>, anchor: Long?, preview: Boole
             when {
                 items.isEmpty() -> Text(
                     text = Strings.WIDGET_EMPTY,
-                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 14.sp),
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 14.sp
+                    ),
                     modifier = GlanceModifier.clickable(
                         openAppAction(context, subjectId = null),
                     ),
                 )
+
                 else -> ItemCard(
                     item = current!!,
                     cover = cover,
@@ -264,6 +276,7 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
                 ) {}
                 Spacer(GlanceModifier.width(14.dp))
             }
+
             is CoverState.Ready -> {
                 Image(
                     provider = ImageProvider(cover.bitmap),
@@ -327,7 +340,8 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
             ) {
                 val today = item.isToday
                 Text(
-                    text = item.airWeekday?.let { Strings.weekdayName(it) } ?: Strings.NO_AIR_WEEKDAY,
+                    text = item.airWeekday?.let { Strings.weekdayName(it) }
+                        ?: Strings.NO_AIR_WEEKDAY,
                     style = TextStyle(
                         color = if (today) GlanceTheme.colors.onPrimary else GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 12.sp,
@@ -348,13 +362,19 @@ private fun ItemCard(item: WidgetItem, cover: CoverState) {
                 if (airedText != null) {
                     Text(
                         text = "·",
-                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            fontSize = 12.sp
+                        ),
                         maxLines = 1,
                         modifier = GlanceModifier.padding(horizontal = 1.dp)
                     )
                     Text(
                         text = airedText,
-                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            fontSize = 12.sp
+                        ),
                         maxLines = 1,
                         modifier = GlanceModifier.padding(start = 6.dp),
                     )
@@ -434,7 +454,6 @@ class IncrementAction : ActionCallback {
         val localId = parameters[LocalIdKey] ?: return
         val repository = (context.applicationContext as AnimeCheckerApp).container.repository
         repository.increment(localId)
-        AnimeCheckerWidget().update(context, glanceId)
     }
 
     companion object {

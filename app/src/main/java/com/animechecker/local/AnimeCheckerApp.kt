@@ -17,7 +17,6 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 
@@ -29,7 +28,7 @@ class AnimeCheckerApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        observeTracksForWidget()
+        observeDataChangedForWidget()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             publishWidgetPreviews()
@@ -68,20 +67,18 @@ class AnimeCheckerApp : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * 监听 Room 更新，写库后主动刷新桌面组件。
+     * 监听数据更新，触发组件update。
      */
-    private fun observeTracksForWidget() {
+    private fun observeDataChangedForWidget() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-            container.repository.tracksWithSubjects()
-                .distinctUntilChanged()
-                .collect {
-                    runCatching {
-                        val widget = AnimeCheckerWidget()
-                        GlanceAppWidgetManager(this@AnimeCheckerApp)
-                            .getGlanceIds(AnimeCheckerWidget::class.java)
-                            .forEach { id -> widget.update(this@AnimeCheckerApp, id) }
-                    }
+            container.repository.dataChanged.collect {
+                runCatching {
+                    val widget = AnimeCheckerWidget()
+                    GlanceAppWidgetManager(this@AnimeCheckerApp)
+                        .getGlanceIds(AnimeCheckerWidget::class.java)
+                        .forEach { id -> widget.update(this@AnimeCheckerApp, id) }
                 }
+            }
         }
     }
 }

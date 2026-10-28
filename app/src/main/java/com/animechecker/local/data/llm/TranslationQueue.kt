@@ -45,9 +45,12 @@ internal class TranslationQueue(
     private val translator: LlmTranslator,
 ) {
 
-    suspend fun pump(settings: LlmSettings) {
+    /**
+     * 执行一轮翻译。返回false表示队列为空，本轮不执行操作。
+     */
+    suspend fun pump(settings: LlmSettings): Boolean {
         val pending = store.pending()
-        if (pending.isEmpty()) return
+        if (pending.isEmpty()) return false
 
         // 标题批：一次请求带 ≤10 条（客户端切分），成功的逐条进库
         val titleItems = pending.filter { it.nameCn == null }
@@ -84,6 +87,7 @@ internal class TranslationQueue(
                 },
             )
         }
+        return true
     }
 
     /** 翻译失败不中断整轮，但协程取消必须上抛。 */

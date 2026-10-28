@@ -19,7 +19,10 @@ import com.animechecker.local.domain.model.shouldAutoComplete
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -56,6 +59,21 @@ class AppRepository internal constructor(
     private var lastCatalogRefreshAt = 0L
     private var lastTrackedRefreshAt = 0L
 
+    /**
+     * “业务写操作已完成”事件，供桌面组件等视图进行刷新。
+     * 与 Room 表级别观察区分，将翻译批量写入视为一次完整操作。
+     */
+    private val _dataChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    val dataChanged: SharedFlow<Unit> = _dataChanged
+
+    private fun notifyDataChanged() {
+        _dataChanged.tryEmit(Unit)
+    }
+
     /** 搜索结果：[fromCache] 表示网络失败后回落到本地模糊匹配。 */
     data class SearchResult(val items: List<Subject>, val fromCache: Boolean)
 
@@ -69,11 +87,13 @@ class AppRepository internal constructor(
         }
 
     /** 库内全部条目：番库页与季度页按领域模型过滤。 */
-    fun subjects(): Flow<List<Subject>> = subjectDao.observeAll().map { list -> list.map { it.toDomain() } }
+    fun subjects(): Flow<List<Subject>> =
+        subjectDao.observeAll().map { list -> list.map { it.toDomain() } }
 
     fun subject(id: Long): Flow<Subject?> = subjectDao.observeById(id).map { it?.toDomain() }
 
-    fun trackOf(subjectId: Long): Flow<TrackEntry?> = trackDao.observeBySubject(subjectId).map { it?.toDomain() }
+    fun trackOf(subjectId: Long): Flow<TrackEntry?> =
+        trackDao.observeBySubject(subjectId).map { it?.toDomain() }
 
     fun translationPendingCount(): Flow<Int> = subjectDao.translationPendingCount()
 
@@ -114,7 +134,10 @@ class AppRepository internal constructor(
             lastCatalogRefreshAt = now()
             settingsStore.setLastRefreshAt(lastCatalogRefreshAt)
         }
-    }.also { kickTranslation() }
+    }.also {
+        notifyDataChanged()
+        kickTranslation()
+    }
 
     /**
      * 首页轻量刷新：只更新追番对象的进度数据。
@@ -131,7 +154,10 @@ class AppRepository internal constructor(
                 }
             }
         }.onSuccess { lastTrackedRefreshAt = now() }
-    }.also { kickTranslation() }
+    }.also {
+        notifyDataChanged()
+        kickTranslation()
+    }
 
     /** 详情：网络优先并缓存；失败时回退缓存。打开详情本身即简介入翻译队列的信号。 */
     suspend fun loadDetail(id: Long): Result<Subject> {
@@ -141,6 +167,7 @@ class AppRepository internal constructor(
             }
         }
         kickTranslation()
+        notifyDataChanged()
         val cached = subjectDao.byId(id)?.toDomain()
         // 拉取失败时上一步的入队没跑到，缓存里有原文也算"打开过详情"，补一次入队
         if (fresh.isFailure && cached?.summaryEn != null) {
@@ -148,7 +175,9 @@ class AppRepository internal constructor(
         }
         return when {
             cached != null -> Result.success(cached)
-            else -> Result.failure(fresh.exceptionOrNull()?.toAppError() ?: AppError(AppError.Kind.NOT_FOUND))
+            else -> Result.failure(
+                fresh.exceptionOrNull()?.toAppError() ?: AppError(AppError.Kind.NOT_FOUND)
+            )
         }
     }
 
@@ -164,16 +193,25 @@ class AppRepository internal constructor(
             }
         }
         kickTranslation()
+        notifyDataChanged()
         return remote.fold(
             onSuccess = { SearchResult(it, fromCache = false) },
-            onFailure = { SearchResult(subjectDao.search(trimmed).map { it.toDomain() }, fromCache = true) },
+            onFailure = {
+                SearchResult(
+                    subjectDao.search(trimmed).map { it.toDomain() },
+                    fromCache = true
+                )
+            },
         )
     }
 
     /** 季度目录：拉取后入缓存，界面从 [subjects] 的 Flow 过滤。 */
     suspend fun refreshSeason(season: Season): Result<Unit> = resultOf {
         withContext(Dispatchers.IO) { upsertMerged(anilist.season(season)) }
-    }.also { kickTranslation() }
+    }.also {
+        notifyDataChanged()
+        kickTranslation()
+    }
 
     /**
      * 合并写：网络非空字段覆盖旧值、空字段保留，nextEpisode / nextAiringAt 例外
@@ -199,7 +237,10 @@ class AppRepository internal constructor(
         scope.launch {
             val settings = settingsStore.llmSettings()
             if (!settings.usable) return@launch
-            translationMutex.withLock { translations.pump(settings) }
+            translationMutex.withLock {
+                // 一轮翻译可能逐行回写多次，仅在收尾发一次事件
+                if (translations.pump(settings)) notifyDataChanged()
+            }
         }
     }
 
@@ -231,6 +272,7 @@ class AppRepository internal constructor(
         trackDao.insert(
             TrackEntry(subjectId = subjectId, status = status, updatedAt = now()).toEntity(),
         )
+        notifyDataChanged()
     }
 
     /** +1：把下一集（当前最大集 +1）加入集合。返回 false = 已到上限（已放送集数），未加。 */
@@ -242,6 +284,7 @@ class AppRepository internal constructor(
         if (cap != null && next > cap) return false
         mutate(localId) { entry -> entry.copy(watched = entry.watched + next) }
         autoCompleteIfFinished(localId)
+        notifyDataChanged()
         return true
     }
 
@@ -250,6 +293,7 @@ class AppRepository internal constructor(
         val track = trackDao.byId(localId) ?: return false
         val max = track.toDomain().watched.maxOrNull() ?: return false
         mutate(localId) { it.copy(watched = it.watched - max) }
+        notifyDataChanged()
         return true
     }
 
@@ -259,28 +303,41 @@ class AppRepository internal constructor(
             entry.copy(watched = if (episode in entry.watched) entry.watched - episode else entry.watched + episode)
         }
         autoCompleteIfFinished(localId)
+        notifyDataChanged()
     }
 
-    suspend fun setStatus(localId: Long, status: TrackStatus) = mutate(localId) { it.copy(status = status) }
+    suspend fun setStatus(localId: Long, status: TrackStatus) {
+        mutate(localId) { it.copy(status = status) }
+        notifyDataChanged()
+    }
 
     /** 评分：超出 1..10 视为未评分。 */
-    suspend fun setRating(localId: Long, rating: Int) =
+    suspend fun setRating(localId: Long, rating: Int) {
         mutate(localId) { it.copy(rating = rating.takeIf { value -> value in 1..10 }) }
+        notifyDataChanged()
+    }
 
     /** 评论：空白视为清空。 */
-    suspend fun setComment(localId: Long, comment: String) =
+    suspend fun setComment(localId: Long, comment: String) {
         mutate(localId) { it.copy(comment = comment.trim().ifBlank { null }) }
+        notifyDataChanged()
+    }
 
     /** 追平：已放送的集数全部加入集合。返回 false = 缺放送数据。 */
     suspend fun catchup(localId: Long): Boolean {
         val track = trackDao.byId(localId) ?: return false
-        val aired = AiredEps.subjectAired(subjectDao.byId(track.subjectId)?.toDomain()) ?: return false
+        val aired =
+            AiredEps.subjectAired(subjectDao.byId(track.subjectId)?.toDomain()) ?: return false
         mutate(localId) { it.copy(watched = (1..aired).toSet()) }
         autoCompleteIfFinished(localId)
+        notifyDataChanged()
         return true
     }
 
-    suspend fun removeTrack(localId: Long) = trackDao.delete(localId)
+    suspend fun removeTrack(localId: Long) {
+        trackDao.delete(localId)
+        notifyDataChanged()
+    }
 
     /**
      * 手动编辑译文。
@@ -293,12 +350,13 @@ class AppRepository internal constructor(
         subjectDao.setNameCn(subjectId, name)
         subjectDao.setSummary(subjectId, translated)
         val workLeft = name == null ||
-            (subject.needSummary && subject.summaryEn != null && translated == null)
+                (subject.needSummary && subject.summaryEn != null && translated == null)
         when {
             !workLeft -> subjectDao.setTranslateState(subjectId, SubjectEntity.TRANSLATE_DONE)
             subject.translateState == SubjectEntity.TRANSLATE_DONE ->
                 subjectDao.setTranslateState(subjectId, SubjectEntity.TRANSLATE_PENDING)
         }
+        notifyDataChanged()
     }
 
     private suspend fun mutate(localId: Long, transform: (TrackEntry) -> TrackEntry) {
@@ -310,7 +368,13 @@ class AppRepository internal constructor(
         val track = trackDao.byId(localId)?.toDomain() ?: return
         val subject = subjectDao.byId(track.subjectId)?.toDomain()
         val aired = AiredEps.subjectAired(subject)
-        if (!shouldAutoComplete(track.status, track.watched.count(), subject?.epsTotal, aired)) return
+        if (!shouldAutoComplete(
+                track.status,
+                track.watched.count(),
+                subject?.epsTotal,
+                aired
+            )
+        ) return
         mutate(localId) { it.copy(status = TrackStatus.DONE) }
     }
 
