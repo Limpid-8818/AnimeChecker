@@ -8,5 +8,6 @@
     android:targetCellWidth="@integer/anime_checker_widget_target_cell_width"
     android:targetCellHeight="@integer/anime_checker_widget_target_cell_height"
     android:description="@string/widget_description"
+    android:previewImage="@drawable/anime_checker_widget_preview_image"
     android:previewLayout="@layout/anime_checker_widget_preview">
 </appwidget-provider>
