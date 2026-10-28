@@ -137,7 +137,7 @@ private object WidgetColors {
     val providers = ColorProviders(light = LightColors, dark = DarkColors)
 }
 
-/** 封面尺寸（4x2 定稿）：文字列高度与封面同高，锚定上下两端。 */
+// 封面尺寸
 private val CoverWidth = 86.dp
 private val CoverHeight = 128.dp
 
@@ -149,9 +149,15 @@ private fun WidgetSurface(items: List<WidgetItem>, previewCover: Bitmap? = null)
     val context = LocalContext.current
     val anchor = currentState(AnimeCheckerWidget.AnchorKey)
     val current = items.getOrNull(anchorIndex(items, anchor))
-    // 封面随当前条目异步加载，切卡后按coverUrl重新加载
-    val loadedCover by produceState<Bitmap?>(initialValue = null, key1 = current?.coverUrl) {
-        value = loadWidgetCover(context, current?.coverUrl)
+    // 封面随当前条目异步加载，切卡后按coverUrl重新加载；无地址视为加载失败
+    val loadedCover by produceState(
+        initialValue = if (current?.coverUrl == null) CoverState.Failed else CoverState.Loading,
+        key1 = current?.coverUrl,
+    ) {
+        value = when (val bitmap = loadWidgetCover(context, current?.coverUrl)) {
+            null -> CoverState.Failed
+            else -> CoverState.Ready(bitmap)
+        }
     }
     Scaffold(
         titleBar = { WidgetHeader() },
@@ -169,7 +175,10 @@ private fun WidgetSurface(items: List<WidgetItem>, previewCover: Bitmap? = null)
                         openAppAction(context, subjectId = null),
                     ),
                 )
-                else -> ItemCard(item = current!!, cover = previewCover ?: loadedCover)
+                else -> ItemCard(
+                    item = current!!,
+                    cover = previewCover?.let(CoverState::Ready) ?: loadedCover,
+                )
             }
         }
     }
@@ -228,7 +237,7 @@ private fun WidgetHeader() {
  */
 @SuppressLint("RestrictedApi") // ColorProvider 误报
 @Composable
-private fun ItemCard(item: WidgetItem, cover: Bitmap?) {
+private fun ItemCard(item: WidgetItem, cover: CoverState) {
     val total = item.epsTotal ?: item.aired?.takeIf { it > 0 }
     val denominator = (total ?: item.watchedCount).coerceAtLeast(1).toFloat()
     val progress = (item.watchedCount / denominator).coerceIn(0f, 1f)
@@ -239,16 +248,29 @@ private fun ItemCard(item: WidgetItem, cover: Bitmap?) {
             .clickable(openAppAction(LocalContext.current, subjectId = item.subjectId)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (cover != null) {
-            Image(
-                provider = ImageProvider(cover),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = GlanceModifier
-                    .size(width = CoverWidth, height = CoverHeight)
-                    .cornerRadius(10.dp),
-            )
-            Spacer(GlanceModifier.width(14.dp))
+        // 封面加载中使用同尺寸色块占位，失败则回退纯文本
+        when (cover) {
+            CoverState.Failed -> Unit
+            CoverState.Loading -> {
+                Box(
+                    modifier = GlanceModifier
+                        .size(width = CoverWidth, height = CoverHeight)
+                        .background(GlanceTheme.colors.surfaceVariant)
+                        .cornerRadius(10.dp),
+                ) {}
+                Spacer(GlanceModifier.width(14.dp))
+            }
+            is CoverState.Ready -> {
+                Image(
+                    provider = ImageProvider(cover.bitmap),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = GlanceModifier
+                        .size(width = CoverWidth, height = CoverHeight)
+                        .cornerRadius(10.dp),
+                )
+                Spacer(GlanceModifier.width(14.dp))
+            }
         }
         // 文字列
         Column(

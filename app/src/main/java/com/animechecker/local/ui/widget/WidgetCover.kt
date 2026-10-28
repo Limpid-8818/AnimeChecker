@@ -25,4 +25,11 @@ internal suspend fun loadWidgetCover(context: Context, url: String?): Bitmap? {
     }
 }
 
+/** 封面加载状态。 */
+internal sealed interface CoverState {
+    data object Loading : CoverState
+    data class Ready(val bitmap: Bitmap) : CoverState
+    data object Failed : CoverState
+}
+
 private const val COVER_SIZE_PX = 512
