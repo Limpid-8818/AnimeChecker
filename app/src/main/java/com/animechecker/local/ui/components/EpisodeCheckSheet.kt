@@ -50,7 +50,7 @@ fun EpisodeCheckSheet(
     onToggleEpisode: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val cap = maxOf(watched.maxOrNull() ?: 0, aired ?: 0, total ?: 0, MIN_GRID_ROWS)
+    val cap = maxOf(watched.maxOrNull() ?: 0, aired ?: 0, total ?: 0)
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = null) {
         Column(
@@ -92,7 +92,7 @@ fun EpisodeCheckSheet(
                 columns = GridCells.Adaptive(minSize = 56.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 384.dp),
+                    .heightIn(min = 96.dp, max = 384.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 4.dp),
@@ -110,8 +110,6 @@ fun EpisodeCheckSheet(
         }
     }
 }
-
-private const val MIN_GRID_ROWS = 12
 
 /** 自定义拖动手柄：视觉 32×4dp 圆条；水波纹裁剪在 48×24dp 触控区内。 */
 @Composable
