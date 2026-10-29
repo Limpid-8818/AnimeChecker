@@ -15,6 +15,8 @@ data class Subject(
     // 放送星期，1-7。
     val airWeekday: Int? = null,
     val epsTotal: Int? = null,
+    // 是否已完结（AniList status == FINISHED）。
+    val finished: Boolean = false,
     // 下一集编号（AniList nextAiringEpisode）。
     val nextEpisode: Int? = null,
     // 下一集放送时间

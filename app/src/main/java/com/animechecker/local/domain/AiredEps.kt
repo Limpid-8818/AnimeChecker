@@ -1,6 +1,6 @@
 /**
- * 已放送集数推算：优先按 nextAiringEpisode 精确推算，不足时按放送日周更兜底，
- * 总集数封顶。
+ * 已放送集数推算：完结条目按总集数计；其次按 nextAiringEpisode 精确推算，
+ * 不足时按放送日周更兜底，总集数封顶。
  *
  * 纯函数、调用时实时计算。
  */
@@ -20,9 +20,12 @@ object AiredEps {
         nextEpisode: Int?,
         nextAiringAt: Long?,
         epsTotal: Int?,
+        finished: Boolean = false,
         today: LocalDate = LocalDate.now(zone),
         nowEpoch: Long = System.currentTimeMillis() / 1000,
     ): Int? {
+        // 完结路径：总集数即已放送集数
+        if (finished && epsTotal != null) return epsTotal
         // 精确路径：AniList 给出下一集编号与放送时间
         if (nextEpisode != null && nextEpisode > 0 && nextAiringAt != null) {
             val base = if (nowEpoch >= nextAiringAt) nextEpisode else nextEpisode - 1
@@ -48,6 +51,7 @@ object AiredEps {
             nextEpisode = subject.nextEpisode,
             nextAiringAt = subject.nextAiringAt,
             epsTotal = subject.epsTotal,
+            finished = subject.finished,
             today = today,
         )
     }

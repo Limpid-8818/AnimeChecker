@@ -24,6 +24,8 @@ data class SubjectEntity(
     /** 1-7，放送星期。 */
     val airWeekday: Int? = null,
     val epsTotal: Int? = null,
+    /** 是否已完结。 */
+    val finished: Boolean = false,
     val nextEpisode: Int? = null,
     val nextAiringAt: Long? = null,
     val ratingScore: Double? = null,
@@ -53,6 +55,7 @@ fun SubjectEntity.toDomain(): Subject = Subject(
     airDate = airDate?.let(LocalDate::parse),
     airWeekday = airWeekday,
     epsTotal = epsTotal,
+    finished = finished,
     nextEpisode = nextEpisode,
     nextAiringAt = nextAiringAt,
     ratingScore = ratingScore,
@@ -63,7 +66,9 @@ fun SubjectEntity.toDomain(): Subject = Subject(
 
 /**
  * 网络数据持久化：非空字段覆盖旧值，空字段保留旧值；
- * nextEpisode / nextAiringAt 例外，番播完后 AniList 会清空该字段，旧值必须跟着失效。
+ * nextEpisode / nextAiringAt / finished 例外，
+ * 番播完后 AniList 会清空 nextAiringEpisode、将状态设置为 FINISHED，完结条目若被上游改回
+ * RELEASING 续播则 finished 也要跟着回退。
  * 翻译结果与状态、队列标记、日历标记只由本地写路径维护，网络侧不修改。
  */
 fun Subject.toEntity(syncedAt: Long, old: SubjectEntity? = null): SubjectEntity = SubjectEntity(
@@ -76,6 +81,7 @@ fun Subject.toEntity(syncedAt: Long, old: SubjectEntity? = null): SubjectEntity 
     airDate = airDate?.toString() ?: old?.airDate,
     airWeekday = airWeekday ?: old?.airWeekday,
     epsTotal = epsTotal ?: old?.epsTotal,
+    finished = finished,
     nextEpisode = nextEpisode,
     nextAiringAt = nextAiringAt,
     ratingScore = ratingScore ?: old?.ratingScore,

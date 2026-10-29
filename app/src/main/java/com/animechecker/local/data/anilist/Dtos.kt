@@ -65,6 +65,8 @@ internal data class ScheduleDto(
 internal data class MediaDto(
     val id: Long = 0,
     val episodes: Int? = null,
+    /** 放送状态：FINISHED / RELEASING / NOT_YET_RELEASED / CANCELLED / HIATUS */
+    val status: String? = null,
     val averageScore: Int? = null,
     val coverImage: CoverImageDto? = null,
     val title: TitleDto? = null,

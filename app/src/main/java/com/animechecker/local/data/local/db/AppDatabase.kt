@@ -14,7 +14,7 @@ import com.animechecker.local.data.local.entity.TrackEntity
  */
 @Database(
     entities = [SubjectEntity::class, TrackEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

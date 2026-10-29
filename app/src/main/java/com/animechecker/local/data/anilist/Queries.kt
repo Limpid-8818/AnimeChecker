@@ -14,7 +14,7 @@ internal object Queries {
 
     /** 条目字段：不含简介。放送表用，调用处另补 `isAdult` 以过滤成人向条目。 */
     private const val MEDIA_CORE = """
-        id episodes averageScore
+        id episodes status averageScore
         coverImage { large }
         title { romaji english native }
         nextAiringEpisode { episode airingAt }

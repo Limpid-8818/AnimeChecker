@@ -34,6 +34,7 @@ internal fun MediaDto.toSubject(scheduleEpoch: Long? = null): Subject {
         airDate = date,
         airWeekday = weekDay(scheduleEpoch, date),
         epsTotal = episodes,
+        finished = status == "FINISHED",
         nextEpisode = nextAiringEpisode?.episode,
         nextAiringAt = nextAiringEpisode?.airingAt,
         ratingScore = averageScore?.let { round(it / 10.0 * 10) / 10.0 },
